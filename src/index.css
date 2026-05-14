@@ -1,0 +1,22 @@
+@import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=Inter:wght@400;500;600;700&display=swap');
+@import "tailwindcss";
+@plugin "@tailwindcss/typography";
+
+@theme {
+  --font-sans: "Sarabun", "Inter", ui-sans-serif, system-ui, sans-serif;
+  
+  --color-brand-primary: #003366;
+  --color-brand-secondary: #FFD700;
+  --color-brand-accent: #00A8E8;
+}
+
+@layer base {
+  body {
+    @apply bg-slate-50 text-slate-900;
+  }
+}
+
+.markdown-body {
+  @apply prose prose-slate prose-sm max-w-none prose-p:my-0 prose-headings:my-2;
+}
+
