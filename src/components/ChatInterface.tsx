@@ -135,10 +135,13 @@ export default function ChatInterface() {
                 <div className={cn(
                   "p-3 rounded-2xl shadow-sm",
                   message.role === 'user' 
-                    ? "bg-brand-primary text-white rounded-tr-none" 
+                    ? "bg-brand-primary text-white rounded-tr-none font-medium" 
                     : "bg-white text-slate-800 rounded-tl-none border border-slate-100"
                 )}>
-                  <div className={cn("markdown-body", message.role === 'user' && "prose-invert")}>
+                  <div className={cn(
+                    "markdown-body", 
+                    message.role === 'user' ? "prose-invert !text-white" : "text-slate-800"
+                  )}>
                     <ReactMarkdown>{message.text}</ReactMarkdown>
                   </div>
                 </div>
