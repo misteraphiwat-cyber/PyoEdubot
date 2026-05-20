@@ -9,7 +9,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<'chat' | 'botpress'>('chat');
 
   const navItems = [
-    { name: 'สนง.ศึกษาธิการจังหวัด', icon: <Landmark size={18} />, url: 'https://www.pyopeo.com/' },
+    { name: 'สนง.ศึกษาธิการจังหวัด', icon: <Landmark size={18} />, url: 'https://pyopeo.moe.go.th/' },
     { name: 'สป.ศธ.', icon: <School size={18} />, url: 'https://ops.moe.go.th/' },
     { name: 'คุรุสภา', icon: <GraduationCap size={18} />, url: 'https://www.ksp.or.th/' },
   ];
@@ -131,8 +131,8 @@ export default function App() {
                 <div>
                   <h4 className="text-sm font-bold text-slate-800">ช่องทางออนไลน์</h4>
                   <div className="flex flex-col gap-1 mt-1">
-                    <a href="https://www.pyopeo.com" target="_blank" className="text-xs text-brand-accent hover:underline flex items-center gap-1">
-                      www.pyopeo.com <ExternalLink size={10} />
+                    <a href="https://pyopeo.moe.go.th" target="_blank" className="text-xs text-brand-accent hover:underline flex items-center gap-1">
+                      pyopeo.moe.go.th <ExternalLink size={10} />
                     </a>
                     <a href="https://www.facebook.com/PhayaoProvincialEducationOffice" target="_blank" className="text-xs text-brand-accent hover:underline flex items-center gap-1">
                       Facebook: ศึกษาธิการจังหวัดพะเยา <ExternalLink size={10} />
