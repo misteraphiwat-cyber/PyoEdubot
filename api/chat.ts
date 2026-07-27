@@ -40,104 +40,66 @@ const SYSTEM_INSTRUCTION = `
 - ใช้ Emoji ประกอบในตำแหน่งที่เหมาะสม
 `;
 
-export function getCustomApiKey(): string {
-  if (typeof window !== 'undefined') {
-    return localStorage.getItem('phayao_gemini_api_key') || '';
-  }
-  return '';
-}
+export default async function handler(req: any, res: any) {
+  // CORS headers
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
+  res.setHeader(
+    'Access-Control-Allow-Headers',
+    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization, x-gemini-key'
+  );
 
-export function setCustomApiKey(key: string): void {
-  if (typeof window !== 'undefined') {
-    if (key.trim()) {
-      localStorage.setItem('phayao_gemini_api_key', key.trim());
-    } else {
-      localStorage.removeItem('phayao_gemini_api_key');
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || req.headers['x-gemini-key'];
+
+  if (!apiKey) {
+    return res.status(400).json({
+      error: 'GEMINI_API_KEY_MISSING',
+      message: 'ยังไม่ได้ตั้งค่า GEMINI_API_KEY บน Vercel Environment Variables'
+    });
+  }
+
+  try {
+    const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
+    const { message, history } = body || {};
+
+    if (!message) {
+      return res.status(400).json({ error: 'Message is required' });
     }
-  }
-}
 
-export class GeminiService {
-  private getApiKey(): string {
-    const customKey = getCustomApiKey();
-    if (customKey) return customKey;
-    
-    return process.env.GEMINI_API_KEY || '';
-  }
-
-  async chat(message: string, history: { role: string; parts: { text: string }[] }[] = []) {
-    const customKey = getCustomApiKey();
-    
-    // 1. Try serverless endpoint (/api/chat) first
-    try {
-      const response = await fetch('/api/chat', {
-        method: 'POST',
+    const ai = new GoogleGenAI({
+      apiKey: apiKey,
+      httpOptions: {
         headers: {
-          'Content-Type': 'application/json',
-          ...(customKey ? { 'x-gemini-key': customKey } : {})
+          'User-Agent': 'aistudio-build',
         },
-        body: JSON.stringify({ message, history }),
-      });
+      },
+    });
 
-      if (response.ok) {
-        const data = await response.json();
-        if (data && data.text) {
-          return data.text;
-        }
-      } else {
-        const errData = await response.json().catch(() => ({}));
-        if (errData.error === 'GEMINI_API_KEY_MISSING' && !customKey && !process.env.GEMINI_API_KEY) {
-          // Fall through to throw helpful message below
-        } else if (response.status !== 404 && errData.message) {
-          throw new Error(errData.message);
-        }
-      }
-    } catch (err: any) {
-      if (err.message && !err.message.includes('404') && !err.message.includes('Failed to fetch')) {
-        console.warn("API route error, trying client SDK fallback:", err.message);
-      }
-    }
+    const chat = ai.chats.create({
+      model: "gemini-3.6-flash",
+      config: {
+        systemInstruction: SYSTEM_INSTRUCTION,
+        tools: [{ googleSearch: {} }],
+      },
+      history: history || [],
+    });
 
-    // 2. Client SDK Fallback
-    const apiKey = this.getApiKey();
-    if (!apiKey) {
-      throw new Error(
-        "⚠️ **ยังไม่ได้ตั้งค่า API Key บน Vercel**\n\n" +
-        "กรุณาทำตามขั้นตอนดังนี้ครับ:\n" +
-        "1. ไปที่ **Vercel Dashboard** -> โครงการของคุณ (`pyo-edubot`)\n" +
-        "2. ไปที่ **Settings** -> **Environment Variables**\n" +
-        "3. เพิ่ม Name: `GEMINI_API_KEY` และ Value: *(รหัส Gemini API Key ของคุณ)*\n" +
-        "4. กด **Save** แล้วกด **Redeploy** โครงการใน Vercel อีกครั้งครับ\n\n" +
-        "*(หรือกดไอคอน ⚙️ ตั้งค่า API Key ที่มุมบนขวาของแชทเพื่อระบุคีย์ชั่วคราว)*"
-      );
-    }
-
-    try {
-      const ai = new GoogleGenAI({
-        apiKey: apiKey,
-        httpOptions: {
-          headers: {
-            'User-Agent': 'aistudio-build',
-          },
-        },
-      });
-
-      const chat = ai.chats.create({
-        model: "gemini-3.6-flash",
-        config: {
-          systemInstruction: SYSTEM_INSTRUCTION,
-          tools: [{ googleSearch: {} }],
-        },
-        history: history,
-      });
-
-      const response = await chat.sendMessage({ message });
-      return response.text;
-    } catch (clientErr: any) {
-      console.error("Gemini Client SDK Error:", clientErr);
-      throw new Error(clientErr.message || "เกิดข้อผิดพลาดในการเชื่อมต่อกับ Gemini API");
-    }
+    const response = await chat.sendMessage({ message });
+    return res.status(200).json({ text: response.text });
+  } catch (error: any) {
+    console.error("Gemini Server Error:", error);
+    return res.status(500).json({
+      error: 'GEMINI_ERROR',
+      message: error?.message || 'เกิดข้อผิดพลาดในการประมวลผลคำตอบจาก Gemini API'
+    });
   }
 }
-
-export const gemini = new GeminiService();

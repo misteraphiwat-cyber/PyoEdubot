@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, User, Bot, Loader2, RefreshCcw, MapPin, Phone, Globe, ExternalLink } from 'lucide-react';
-import { gemini } from '../services/gemini';
+import { Send, User, Bot, Loader2, RefreshCcw, Settings, Key, X, Check } from 'lucide-react';
+import { gemini, getCustomApiKey, setCustomApiKey } from '../services/gemini';
 import { motion, AnimatePresence } from 'motion/react';
 import ReactMarkdown from 'react-markdown';
 import { cn } from '../lib/utils';
@@ -21,13 +21,29 @@ export default function ChatInterface() {
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [apiKeyInput, setApiKeyInput] = useState('');
+  const [keySaved, setKeySaved] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setApiKeyInput(getCustomApiKey());
+  }, []);
 
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages, isLoading]);
+
+  const handleSaveKey = () => {
+    setCustomApiKey(apiKeyInput);
+    setKeySaved(true);
+    setTimeout(() => {
+      setKeySaved(false);
+      setShowSettings(false);
+    }, 1500);
+  };
 
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
@@ -58,14 +74,15 @@ export default function ChatInterface() {
       };
 
       setMessages(prev => [...prev, botMessage]);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Chat Error:', error);
+      const errorText = error?.message || "ขออภัยครับ ไม่สามารถเชื่อมต่อกับระบบได้ในขณะนี้ กรุณาตรวจสอบการเชื่อมต่ออินเทอร์เน็ตหรือตั้งค่า API Key บน Vercel";
       setMessages(prev => [
         ...prev,
         {
-          id: 'error',
+          id: 'error-' + Date.now(),
           role: 'bot',
-          text: "ขออภัยครับ ไม่สามารถเชื่อมต่อกับระบบได้ในขณะนี้ กรุณาตรวจสอบการเชื่อมต่ออินเทอร์เน็ตของคุณ",
+          text: errorText,
         }
       ]);
     } finally {
@@ -85,7 +102,7 @@ export default function ChatInterface() {
   ];
 
   return (
-    <div className="flex flex-col h-full bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden">
+    <div className="flex flex-col h-full bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden relative">
       {/* Header */}
       <div className="bg-brand-primary p-4 text-white flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -97,14 +114,67 @@ export default function ChatInterface() {
             <p className="text-blue-200 text-xs mt-1">Smart Education Assistant</p>
           </div>
         </div>
-        <button 
-          onClick={clearHistory}
-          className="p-2 hover:bg-white/10 rounded-full transition-colors"
-          title="เริ่มใหม่"
-        >
-          <RefreshCcw size={20} />
-        </button>
+        <div className="flex items-center gap-1">
+          <button 
+            onClick={() => setShowSettings(!showSettings)}
+            className="p-2 hover:bg-white/10 rounded-full transition-colors text-blue-100 hover:text-white"
+            title="ตั้งค่า API Key"
+          >
+            <Settings size={18} />
+          </button>
+          <button 
+            onClick={clearHistory}
+            className="p-2 hover:bg-white/10 rounded-full transition-colors text-blue-100 hover:text-white"
+            title="เริ่มใหม่"
+          >
+            <RefreshCcw size={18} />
+          </button>
+        </div>
       </div>
+
+      {/* Settings Modal/Popover */}
+      <AnimatePresence>
+        {showSettings && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="bg-slate-900 text-white p-4 border-b border-slate-700 shadow-xl z-20 text-xs"
+          >
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2 font-bold text-sm text-yellow-400">
+                <Key size={16} />
+                ตั้งค่า Gemini API Key (สำหรับ Vercel / เว็บไซต์)
+              </div>
+              <button 
+                onClick={() => setShowSettings(false)}
+                className="text-slate-400 hover:text-white p-1"
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <p className="text-slate-300 mb-3 leading-relaxed">
+              หากใช้งานบน <b>Vercel</b> ให้กำหนดค่าใน <code>Environment Variables</code> ชื่อ <code>GEMINI_API_KEY</code> หรือป้อน API Key ชั่วคราวตรงนี้เพื่อใช้งานทันทีได้ครับ:
+            </p>
+            <div className="flex gap-2">
+              <input
+                type="password"
+                value={apiKeyInput}
+                onChange={(e) => setApiKeyInput(e.target.value)}
+                placeholder="วาง Gemini API Key ของคุณที่นี่ (AIzaSy...)"
+                className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white outline-none focus:border-yellow-400"
+              />
+              <button
+                onClick={handleSaveKey}
+                className="bg-yellow-500 hover:bg-yellow-400 text-slate-950 font-bold px-4 py-2 rounded-lg transition-colors flex items-center gap-1"
+              >
+                {keySaved ? <Check size={16} /> : null}
+                {keySaved ? 'บันทึกแล้ว' : 'บันทึก'}
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Messages */}
       <div 
