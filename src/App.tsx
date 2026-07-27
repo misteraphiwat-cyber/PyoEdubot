@@ -1,18 +1,46 @@
 import React, { useState } from 'react';
 import ChatInterface from './components/ChatInterface';
-import { School, Info, BookOpen, MessageCircle, ExternalLink, Menu, X, Landmark, GraduationCap, MapPin, Phone, Globe } from 'lucide-react';
+import { School, Info, BookOpen, MessageCircle, ExternalLink, Menu, X, Landmark, GraduationCap, MapPin, Phone, Globe, Code, Copy, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from './lib/utils';
 
 export default function App() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'chat' | 'botpress'>('chat');
+  const [showEmbedModal, setShowEmbedModal] = useState(false);
+  const [copiedType, setCopiedType] = useState<'widget' | 'inline' | null>(null);
 
   const navItems = [
     { name: 'สนง.ศึกษาธิการจังหวัด', icon: <Landmark size={18} />, url: 'https://pyopeo.moe.go.th/' },
     { name: 'สป.ศธ.', icon: <School size={18} />, url: 'https://ops.moe.go.th/' },
     { name: 'คุรุสภา', icon: <GraduationCap size={18} />, url: 'https://www.ksp.or.th/' },
   ];
+
+  const widgetCode = `<div id="phayao-edubot-container" style="position: fixed; bottom: 20px; right: 20px; z-index: 9999;">
+  <button id="phayao-edubot-toggle" onclick="toggleEdubot()" style="background-color: #003366; color: white; border: none; border-radius: 50px; padding: 12px 20px; font-family: 'Sarabun', sans-serif; font-size: 15px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.25); display: flex; align-items: center; gap: 8px;">
+    🤖 คุยกับ พะเยา เอ็ดดูบอท
+  </button>
+  <div id="phayao-edubot-frame-box" style="display: none; position: absolute; bottom: 60px; right: 0; width: 380px; height: 580px; max-width: 90vw; max-height: 80vh; background: #fff; border-radius: 16px; box-shadow: 0 8px 24px rgba(0,0,0,0.25); overflow: hidden;">
+    <iframe src="https://pyo-edubot.vercel.app/" style="width: 100%; height: 100%; border: none;"></iframe>
+  </div>
+</div>
+<script>
+  function toggleEdubot() {
+    var box = document.getElementById('phayao-edubot-frame-box');
+    box.style.display = (box.style.display === 'none' || box.style.display === '') ? 'block' : 'none';
+  }
+</script>`;
+
+  const inlineCode = `<iframe 
+  src="https://pyo-edubot.vercel.app/" 
+  style="width: 100%; height: 700px; border: none; border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);"
+></iframe>`;
+
+  const handleCopy = (code: string, type: 'widget' | 'inline') => {
+    navigator.clipboard.writeText(code);
+    setCopiedType(type);
+    setTimeout(() => setCopiedType(null), 2000);
+  };
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-900 flex flex-col">
@@ -48,10 +76,13 @@ export default function App() {
                 </a>
               ))}
               <div className="h-6 w-px bg-slate-200 mx-2" />
-              <div className="flex items-center gap-1 text-xs text-slate-400">
-                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-                AI Online
-              </div>
+              <button
+                onClick={() => setShowEmbedModal(true)}
+                className="flex items-center gap-1.5 text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg border border-slate-200 transition-colors font-medium"
+              >
+                <Code size={14} />
+                โค้ดติดหน้าเว็บ
+              </button>
             </div>
 
             {/* Mobile Menu Toggle */}
@@ -87,6 +118,16 @@ export default function App() {
                   <span className="text-sm font-medium">{item.name}</span>
                 </a>
               ))}
+              <button
+                onClick={() => {
+                  setIsMenuOpen(false);
+                  setShowEmbedModal(true);
+                }}
+                className="w-full flex items-center justify-center gap-2 p-3 rounded-xl bg-brand-primary text-white font-medium text-sm"
+              >
+                <Code size={18} />
+                รับโค้ดนำไปติดหน้าเว็บ
+              </button>
             </div>
           </motion.div>
         )}
@@ -167,6 +208,14 @@ export default function App() {
                 Botpress v3
               </button>
             </div>
+            
+            <button
+              onClick={() => setShowEmbedModal(true)}
+              className="mt-4 w-full py-2.5 px-4 bg-white/10 hover:bg-white/20 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-colors border border-white/20"
+            >
+              <Code size={14} />
+              วิธีฝังแชทบอทลงบนเว็บไซต์ pyopeo.moe.go.th
+            </button>
           </section>
 
           <footer className="pt-4 px-2">
@@ -189,6 +238,91 @@ export default function App() {
           )}
         </div>
       </main>
+
+      {/* Embed Code Modal */}
+      <AnimatePresence>
+        {showEmbedModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white rounded-3xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl relative"
+            >
+              <button
+                onClick={() => setShowEmbedModal(false)}
+                className="absolute top-5 right-5 text-slate-400 hover:text-slate-600 p-1 rounded-full hover:bg-slate-100"
+              >
+                <X size={20} />
+              </button>
+
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2.5 bg-brand-primary/10 text-brand-primary rounded-xl">
+                  <Code size={24} />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-slate-800">วิธีนำไปฝังบนเว็บไซต์ pyopeo.moe.go.th</h3>
+                  <p className="text-xs text-slate-500">คัดลอกโค้ดไปวางในระบบหลังบ้านของเว็บไซต์คุณ</p>
+                </div>
+              </div>
+
+              <div className="space-y-6 text-sm text-slate-600">
+                {/* Method 1 */}
+                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="font-bold text-slate-800 flex items-center gap-2">
+                      <span className="w-6 h-6 bg-brand-primary text-white text-xs rounded-full flex items-center justify-center">1</span>
+                      แบบปุ่มแชทลอยมุมขวาล่าง (Floating Widget - แนะนำ)
+                    </h4>
+                    <button
+                      onClick={() => handleCopy(widgetCode, 'widget')}
+                      className="flex items-center gap-1 text-xs bg-brand-primary text-white px-3 py-1.5 rounded-lg hover:bg-brand-primary/90 transition-colors font-medium"
+                    >
+                      {copiedType === 'widget' ? <Check size={14} /> : <Copy size={14} />}
+                      {copiedType === 'widget' ? 'คัดลอกแล้ว!' : 'คัดลอกโค้ด'}
+                    </button>
+                  </div>
+                  <p className="text-xs text-slate-500 mb-3">วางโค้ดนี้ก่อนปิดแท็ก <code className="bg-slate-200 px-1 rounded">&lt;/body&gt;</code> ในไฟล์テンプレート หรือระบบ CMS ของเว็บไซต์</p>
+                  <pre className="bg-slate-900 text-slate-100 p-3 rounded-xl text-xs overflow-x-auto max-h-48 font-mono">
+                    {widgetCode}
+                  </pre>
+                </div>
+
+                {/* Method 2 */}
+                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="font-bold text-slate-800 flex items-center gap-2">
+                      <span className="w-6 h-6 bg-brand-primary text-white text-xs rounded-full flex items-center justify-center">2</span>
+                      แบบฝังเต็มหน้าเพจ (Inline iFrame)
+                    </h4>
+                    <button
+                      onClick={() => handleCopy(inlineCode, 'inline')}
+                      className="flex items-center gap-1 text-xs bg-brand-primary text-white px-3 py-1.5 rounded-lg hover:bg-brand-primary/90 transition-colors font-medium"
+                    >
+                      {copiedType === 'inline' ? <Check size={14} /> : <Copy size={14} />}
+                      {copiedType === 'inline' ? 'คัดลอกแล้ว!' : 'คัดลอกโค้ด'}
+                    </button>
+                  </div>
+                  <p className="text-xs text-slate-500 mb-3">สร้างหน้าเมนูใหม่ (เช่น "ถามตอบกับ AI") แล้ววางโค้ดนี้ลงในเนื้อหาหน้าเพจ</p>
+                  <pre className="bg-slate-900 text-slate-100 p-3 rounded-xl text-xs overflow-x-auto font-mono">
+                    {inlineCode}
+                  </pre>
+                </div>
+              </div>
+
+              <div className="mt-6 flex justify-end">
+                <button
+                  onClick={() => setShowEmbedModal(false)}
+                  className="px-5 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-medium rounded-xl text-sm transition-colors"
+                >
+                  ปิดหน้าต่าง
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
+
