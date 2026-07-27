@@ -40,6 +40,20 @@ const SYSTEM_INSTRUCTION = `
 - ใช้ Emoji ประกอบในตำแหน่งที่เหมาะสม
 `;
 
+function formatQuotaError(rawMessage: string): string {
+  if (rawMessage.includes("429") || rawMessage.includes("RESOURCE_EXHAUSTED") || rawMessage.includes("quota")) {
+    return (
+      "⚠️ **โควต้า Gemini API Key หมดชั่วคราว (Quota Exceeded / Rate Limit 429)**\n\n" +
+      "API Key ที่ตั้งค่าไว้ใน Vercel/ระบบ ถูกใช้งานเกินโควต้าฟรีต่อนาที (RPM) หรือโควต้าประจำวันจาก Google ครับ\n\n" +
+      "**วิธีแก้ไขเบื้องต้น:**\n" +
+      "1. **รอประมาณ 1-2 นาที** แล้วทดลองกดส่งคำถามใหม่อีกครั้ง (สำหรับ Rate limit ต่อนาที)\n" +
+      "2. **สร้าง API Key ใหม่ฟรี**: ไปที่ [Google AI Studio](https://aistudio.google.com/app/apikey) แล้วกดสร้าง Key ใหม่\n" +
+      "3. **นำ Key ใหม่มาใส่**: กดไอคอน **⚙️ (ตั้งค่า)** ที่มุมขวาบนของกล่องแชทบอทนี้ แล้ววาง Key ใหม่เพื่อใช้งานต่อได้ทันทีครับ"
+    );
+  }
+  return rawMessage;
+}
+
 export default async function handler(req: any, res: any) {
   // CORS headers
   res.setHeader('Access-Control-Allow-Credentials', 'true');
@@ -67,23 +81,24 @@ export default async function handler(req: any, res: any) {
     });
   }
 
-  try {
-    const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
-    const { message, history } = body || {};
+  const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
+  const { message, history } = body || {};
 
-    if (!message) {
-      return res.status(400).json({ error: 'Message is required' });
-    }
+  if (!message) {
+    return res.status(400).json({ error: 'Message is required' });
+  }
 
-    const ai = new GoogleGenAI({
-      apiKey: apiKey,
-      httpOptions: {
-        headers: {
-          'User-Agent': 'aistudio-build',
-        },
+  const ai = new GoogleGenAI({
+    apiKey: apiKey,
+    httpOptions: {
+      headers: {
+        'User-Agent': 'aistudio-build',
       },
-    });
+    },
+  });
 
+  // 1. Try with Google Search Grounding first
+  try {
     const chat = ai.chats.create({
       model: "gemini-3.6-flash",
       config: {
@@ -95,11 +110,29 @@ export default async function handler(req: any, res: any) {
 
     const response = await chat.sendMessage({ message });
     return res.status(200).json({ text: response.text });
-  } catch (error: any) {
-    console.error("Gemini Server Error:", error);
-    return res.status(500).json({
-      error: 'GEMINI_ERROR',
-      message: error?.message || 'เกิดข้อผิดพลาดในการประมวลผลคำตอบจาก Gemini API'
-    });
+  } catch (searchError: any) {
+    console.warn("Search Grounding attempt failed, trying fallback without search grounding:", searchError?.message);
+
+    // 2. Fallback attempt without Google Search grounding tool
+    try {
+      const fallbackChat = ai.chats.create({
+        model: "gemini-3.6-flash",
+        config: {
+          systemInstruction: SYSTEM_INSTRUCTION,
+        },
+        history: history || [],
+      });
+
+      const response = await fallbackChat.sendMessage({ message });
+      return res.status(200).json({ text: response.text });
+    } catch (fallbackError: any) {
+      console.error("Gemini API Error:", fallbackError);
+      const errMsg = fallbackError?.message || searchError?.message || 'เกิดข้อผิดพลาดในการเชื่อมต่อ Gemini API';
+      
+      return res.status(500).json({
+        error: 'GEMINI_ERROR',
+        message: formatQuotaError(errMsg)
+      });
+    }
   }
 }

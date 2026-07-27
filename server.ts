@@ -21,6 +21,20 @@ const SYSTEM_INSTRUCTION = `
 - **ต้นสังกัด (สป.ศธ.)**: https://ops.moe.go.th/
 `;
 
+function formatQuotaError(rawMessage: string): string {
+  if (rawMessage.includes("429") || rawMessage.includes("RESOURCE_EXHAUSTED") || rawMessage.includes("quota")) {
+    return (
+      "⚠️ **โควต้า Gemini API Key หมดชั่วคราว (Quota Exceeded / Rate Limit 429)**\n\n" +
+      "API Key ที่ตั้งค่าไว้ถูกใช้งานเกินโควต้าฟรีต่อนาที (RPM) หรือโควต้าประจำวันจาก Google ครับ\n\n" +
+      "**วิธีแก้ไขเบื้องต้น:**\n" +
+      "1. **รอประมาณ 1-2 นาที** แล้วทดลองกดส่งคำถามใหม่อีกครั้ง (สำหรับ Rate limit ต่อนาที)\n" +
+      "2. **สร้าง API Key ใหม่ฟรี**: ไปที่ [Google AI Studio](https://aistudio.google.com/app/apikey) แล้วกดสร้าง Key ใหม่\n" +
+      "3. **นำ Key ใหม่มาใส่**: กดไอคอน **⚙️ (ตั้งค่า)** ที่มุมขวาบนของกล่องแชทบอทนี้ แล้ววาง Key ใหม่เพื่อใช้งานต่อได้ทันทีครับ"
+    );
+  }
+  return rawMessage;
+}
+
 async function startServer() {
   const app = express();
   const PORT = 3000;
@@ -38,21 +52,21 @@ async function startServer() {
       });
     }
 
-    try {
-      const { message, history } = req.body || {};
-      if (!message) {
-        return res.status(400).json({ error: 'Message is required' });
-      }
+    const { message, history } = req.body || {};
+    if (!message) {
+      return res.status(400).json({ error: 'Message is required' });
+    }
 
-      const ai = new GoogleGenAI({
-        apiKey: apiKey,
-        httpOptions: {
-          headers: {
-            'User-Agent': 'aistudio-build',
-          },
+    const ai = new GoogleGenAI({
+      apiKey: apiKey,
+      httpOptions: {
+        headers: {
+          'User-Agent': 'aistudio-build',
         },
-      });
+      },
+    });
 
+    try {
       const chat = ai.chats.create({
         model: "gemini-3.6-flash",
         config: {
@@ -64,12 +78,29 @@ async function startServer() {
 
       const response = await chat.sendMessage({ message });
       return res.status(200).json({ text: response.text });
-    } catch (error: any) {
-      console.error("Express Gemini API Error:", error);
-      return res.status(500).json({
-        error: 'GEMINI_ERROR',
-        message: error?.message || 'เกิดข้อผิดพลาดในการประมวลผลคำตอบจาก Gemini API'
-      });
+    } catch (searchError: any) {
+      console.warn("Express Search Grounding failed, trying fallback without search:", searchError?.message);
+
+      try {
+        const fallbackChat = ai.chats.create({
+          model: "gemini-3.6-flash",
+          config: {
+            systemInstruction: SYSTEM_INSTRUCTION,
+          },
+          history: history || [],
+        });
+
+        const response = await fallbackChat.sendMessage({ message });
+        return res.status(200).json({ text: response.text });
+      } catch (fallbackError: any) {
+        console.error("Express Gemini API Error:", fallbackError);
+        const errMsg = fallbackError?.message || searchError?.message || 'เกิดข้อผิดพลาดในการประมวลผลคำตอบจาก Gemini API';
+        
+        return res.status(500).json({
+          error: 'GEMINI_ERROR',
+          message: formatQuotaError(errMsg)
+        });
+      }
     }
   });
 

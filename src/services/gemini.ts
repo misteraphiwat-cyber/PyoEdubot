@@ -40,6 +40,20 @@ const SYSTEM_INSTRUCTION = `
 - ใช้ Emoji ประกอบในตำแหน่งที่เหมาะสม
 `;
 
+function formatQuotaError(rawMessage: string): string {
+  if (rawMessage.includes("429") || rawMessage.includes("RESOURCE_EXHAUSTED") || rawMessage.includes("quota")) {
+    return (
+      "⚠️ **โควต้า Gemini API Key หมดชั่วคราว (Quota Exceeded / Rate Limit 429)**\n\n" +
+      "API Key ที่ตั้งค่าไว้ถูกใช้งานเกินโควต้าฟรีต่อนาที (RPM) หรือโควต้าประจำวันจาก Google ครับ\n\n" +
+      "**วิธีแก้ไขเบื้องต้น:**\n" +
+      "1. **รอประมาณ 1-2 นาที** แล้วทดลองกดส่งคำถามใหม่อีกครั้ง (สำหรับ Rate limit ต่อนาที)\n" +
+      "2. **สร้าง API Key ใหม่ฟรี**: ไปที่ [Google AI Studio](https://aistudio.google.com/app/apikey) แล้วกดสร้าง Key ใหม่\n" +
+      "3. **นำ Key ใหม่มาใส่**: กดไอคอน **⚙️ (ตั้งค่า)** ที่มุมขวาบนของกล่องแชทบอทนี้ แล้ววาง Key ใหม่เพื่อใช้งานต่อได้ทันทีครับ"
+    );
+  }
+  return rawMessage;
+}
+
 export function getCustomApiKey(): string {
   if (typeof window !== 'undefined') {
     return localStorage.getItem('phayao_gemini_api_key') || '';
@@ -112,16 +126,16 @@ export class GeminiService {
       );
     }
 
-    try {
-      const ai = new GoogleGenAI({
-        apiKey: apiKey,
-        httpOptions: {
-          headers: {
-            'User-Agent': 'aistudio-build',
-          },
+    const ai = new GoogleGenAI({
+      apiKey: apiKey,
+      httpOptions: {
+        headers: {
+          'User-Agent': 'aistudio-build',
         },
-      });
+      },
+    });
 
+    try {
       const chat = ai.chats.create({
         model: "gemini-3.6-flash",
         config: {
@@ -133,9 +147,24 @@ export class GeminiService {
 
       const response = await chat.sendMessage({ message });
       return response.text;
-    } catch (clientErr: any) {
-      console.error("Gemini Client SDK Error:", clientErr);
-      throw new Error(clientErr.message || "เกิดข้อผิดพลาดในการเชื่อมต่อกับ Gemini API");
+    } catch (searchError: any) {
+      console.warn("Client SDK Search grounding failed, trying fallback without search tool:", searchError?.message);
+      try {
+        const fallbackChat = ai.chats.create({
+          model: "gemini-3.6-flash",
+          config: {
+            systemInstruction: SYSTEM_INSTRUCTION,
+          },
+          history: history,
+        });
+
+        const response = await fallbackChat.sendMessage({ message });
+        return response.text;
+      } catch (clientErr: any) {
+        console.error("Gemini Client SDK Error:", clientErr);
+        const rawMsg = clientErr?.message || searchError?.message || "เกิดข้อผิดพลาดในการเชื่อมต่อกับ Gemini API";
+        throw new Error(formatQuotaError(rawMsg));
+      }
     }
   }
 }
