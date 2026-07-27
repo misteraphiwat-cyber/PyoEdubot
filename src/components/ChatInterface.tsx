@@ -105,15 +105,21 @@ export default function ChatInterface() {
     <div className="flex flex-col h-full bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden relative">
       {/* Header */}
       <div className="bg-brand-primary p-4 text-white flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm">
+        <a 
+          href="https://pyo-edubot.vercel.app/" 
+          target="_blank" 
+          rel="noopener noreferrer"
+          className="flex items-center gap-3 hover:opacity-90 transition-opacity group"
+          title="เปิดเว็บไซต์ https://pyo-edubot.vercel.app/"
+        >
+          <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm group-hover:scale-105 transition-transform">
             <Bot size={24} className="text-white" />
           </div>
           <div>
-            <h2 className="font-bold text-lg leading-none">พะเยา เอ็ดดูบอท</h2>
+            <h2 className="font-bold text-lg leading-none group-hover:underline">พะเยา เอ็ดดูบอท</h2>
             <p className="text-blue-200 text-xs mt-1">Smart Education Assistant</p>
           </div>
-        </div>
+        </a>
         <div className="flex items-center gap-1">
           <button 
             onClick={() => setShowSettings(!showSettings)}
