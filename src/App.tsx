@@ -219,7 +219,7 @@ export default function App() {
           </section>
 
           <footer className="pt-4 px-2">
-            <p className="text-[10px] text-slate-400">© 2024 Phayao Provincial Education Office. Built with Gemini AI.</p>
+            <p className="text-[10px] text-slate-400">© 2026 Phayao Provincial Education Office. Built with Gemini AI.</p>
           </footer>
         </div>
 
